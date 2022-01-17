@@ -84,69 +84,63 @@ CreateThread(function() Config.LoadPlugin("firesiren", function(pluginConfig)
 			lastSirenCall = 0
 			
 			AddEventHandler("SonoranCAD::pushevents:DispatchEvent", function()		
-				performApiRequest({callsData}, "GET_CALLS",  
-					function(resp)
-						debugLog(resp)						
-						if resp ~= nil then	
-							local callData = json.decode(resp)
-							for i,l in pairs(callData.activeCalls) do	
-								for n, m in pairs(pluginConfig.fireCalls) do
-									if l.code:upper() == m.code:upper() and l.callId > lastSirenCall and l.postal ~= nil and l.postal ~= "" then
-										lastSirenCall = l.callId
-										
-										local closestSiren = {}
-										
-										local dist = nil
-										
-										for k,v in pairs(pluginConfig.fireSirens) do
-											local sirenPostal = getNearestPostalFromCoords(v.Loc)
-											if dist == nil or math.abs(sirenPostal - l.postal) < dist then
-												dist = math.abs(sirenPostal - l.postal)
-												closestSiren = v
-											end		
-										end
-										
-										local ToBeSirened = {}
-										local ValidStation = {}
-										ValidStation.x, ValidStation.y, ValidStation.z = table.unpack(closestSiren.Loc)
-										ValidStation.Name = closestSiren.Name
-										ValidStation.Siren = closestSiren.Siren
-										ValidStation.Radius = closestSiren.Radius
-										table.insert(ToBeSirened, ValidStation)
-										
-										for _, Station in ipairs(ToBeSirened) do
-											TriggerEvent('Fire-EMS-Pager:StoreSiren', Station)
-											debugLog("Stored fire siren: " .. Station.Name)
-										end
-										Wait(2000)										
-										TriggerEvent('Fire-EMS-Pager:SoundSirens', ToBeSirened)
-										
-										if pluginConfig.addCallNote then
-											callNote = pluginConfig.callNoteMessage
-											if pluginConfig.callNoteStation then
-												callNote = closestSiren.Label .. " " .. pluginConfig.callNoteMessage
-											end
-											
-											local callsNote = {			
-												['serverId'] = Config.serverId,
-												['callId'] = l.callId,													
-												['note'] = callNote,
-											}
-											
-											performApiRequest({callsNote}, "ADD_CALL_NOTE",  
-											function(resp)
-												debugLog(resp)
-											end)
-										end
-										
-										Wait(2000)
-										TriggerEvent('Fire-EMS-Pager:RemoveSiren', ValidStation.Name)
-									end
+				local callData = GetCallCache()
+				for i,l in pairs(callData) do
+					l = l.dispatch
+					for n, m in pairs(pluginConfig.fireCalls) do
+						if l.code:upper() == m.code:upper() and l.callId > lastSirenCall and l.postal ~= nil and l.postal ~= "" then
+							lastSirenCall = l.callId
+							
+							local closestSiren = {}
+							
+							local dist = nil
+							
+							for k,v in pairs(pluginConfig.fireSirens) do
+								local sirenPostal = getNearestPostalFromCoords(v.Loc)
+								if dist == nil or math.abs(sirenPostal - l.postal) < dist then
+									dist = math.abs(sirenPostal - l.postal)
+									closestSiren = v
+								end		
+							end
+							
+							local ToBeSirened = {}
+							local ValidStation = {}
+							ValidStation.x, ValidStation.y, ValidStation.z = table.unpack(closestSiren.Loc)
+							ValidStation.Name = closestSiren.Name
+							ValidStation.Siren = closestSiren.Siren
+							ValidStation.Radius = closestSiren.Radius
+							table.insert(ToBeSirened, ValidStation)
+							
+							for _, Station in ipairs(ToBeSirened) do
+								TriggerEvent('Fire-EMS-Pager:StoreSiren', Station)
+								debugLog("Stored fire siren: " .. Station.Name)
+							end
+							Wait(2000)										
+							TriggerEvent('Fire-EMS-Pager:SoundSirens', ToBeSirened)
+							
+							if pluginConfig.addCallNote then
+								callNote = pluginConfig.callNoteMessage
+								if pluginConfig.callNoteStation then
+									callNote = closestSiren.Label .. " " .. pluginConfig.callNoteMessage
 								end
-							end	
+								
+								local callsNote = {			
+									['serverId'] = Config.serverId,
+									['callId'] = l.callId,													
+									['note'] = callNote,
+								}
+								
+								performApiRequest({callsNote}, "ADD_CALL_NOTE",  
+								function(resp)
+									debugLog(resp)
+								end)
+							end
+							
+							Wait(2000)
+							TriggerEvent('Fire-EMS-Pager:RemoveSiren', ValidStation.Name)
 						end
 					end
-				)
+				end
 			end)
 		else
 			errorLog(("[firesiren] The configured postals type (%s) is in incorrect. Please check it."):format(pluginConfig.postalsType))
