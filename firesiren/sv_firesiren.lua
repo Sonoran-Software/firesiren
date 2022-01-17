@@ -10,6 +10,7 @@ CreateThread(function() Config.LoadPlugin("firesiren", function(pluginConfig)
 
     if pluginConfig.enabled then
         local state = GetResourceState(pluginConfig.firesirenResourceName)
+		local state = GetResourceState(pluginConfig.firesirenResourceName)
 		local shouldStop = false
 		if state ~= "started" then
 			if state == "missing" then
@@ -30,8 +31,28 @@ CreateThread(function() Config.LoadPlugin("firesiren", function(pluginConfig)
 			return
 		end
 		
+		state = GetResourceState(pluginConfig.nearestPostalResourceName)
+		if state ~= "started" then
+			if state == "missing" then
+				errorLog(("[firesiren] The configured nearestpostal resource (%s) does not exist. Please check the name."):format(pluginConfig.nearestPostalResourceName))
+				shouldStop = true
+			elseif state == "stopped" then
+				warnLog(("[firesiren] The nearestpostal resource (%s) is not started. Please ensure it's started before clients conntect. This is only a warning. State: %s"):format(pluginConfig.nearestPostalResourceName, state))
+			else
+				errorLog(("[firesiren] The configured nearestpostal resource (%s) is in a bad state (%s). Please check it."):format(pluginConfig.nearestPostalResourceName, state))
+				shouldStop = true
+			end
+		end
+		
+		if shouldStop then
+			pluginConfig.enabled = false
+			pluginConfig.disableReason = "nearestpostal resource incorrect"
+			errorLog("Force disabling plugin to prevent client errors.")
+			return
+		end
+		
 		postals = nil
-		postals = json.decode(LoadResourceFile(GetCurrentResourceName(), "plugins/firesiren/"..pluginConfig.postalsType..".json"))
+		postals = json.decode(LoadResourceFile(pluginConfig.nearestPostalResourceName, pluginConfig.postalsType..".json"))
 		if postals ~= nil then
 			for i, postal in ipairs(postals) do postals[i] = { vec(postal.x, postal.y), code = postal.code } end
 			
@@ -62,7 +83,7 @@ CreateThread(function() Config.LoadPlugin("firesiren", function(pluginConfig)
 			
 			lastSirenCall = 0
 			
-			while true do				
+			AddEventHandler("SonoranCAD::pushevents:DispatchEvent", function()		
 				performApiRequest({callsData}, "GET_CALLS",  
 					function(resp)
 						debugLog(resp)						
@@ -95,14 +116,15 @@ CreateThread(function() Config.LoadPlugin("firesiren", function(pluginConfig)
 										
 										for _, Station in ipairs(ToBeSirened) do
 											TriggerEvent('Fire-EMS-Pager:StoreSiren', Station)
+											debugLog("Stored fire siren: " .. Station.Name)
 										end
-										Wait(2000)
+										Wait(2000)										
 										TriggerEvent('Fire-EMS-Pager:SoundSirens', ToBeSirened)
 										
 										if pluginConfig.addCallNote then
-											local callNote = pluginConfig.callNoteMessage
-											if callNoteStation then
-												callNote = closestSiren.label .. " " .. pluginConfig.callNoteMessage
+											callNote = pluginConfig.callNoteMessage
+											if pluginConfig.callNoteStation then
+												callNote = closestSiren.Label .. " " .. pluginConfig.callNoteMessage
 											end
 											
 											local callsNote = {			
@@ -125,8 +147,7 @@ CreateThread(function() Config.LoadPlugin("firesiren", function(pluginConfig)
 						end
 					end
 				)
-				Wait(pluginConfig.checkTimer)
-			end
+			end)
 		else
 			errorLog(("[firesiren] The configured postals type (%s) is in incorrect. Please check it."):format(pluginConfig.postalsType))
 			shouldStop = true

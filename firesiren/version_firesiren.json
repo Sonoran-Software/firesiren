@@ -1,7 +1,7 @@
 {
-    "version": "1.0",
-    "check_url": "https://raw.githubusercontent.com/path/to/version.json",
-    "download_url": "https://github.com/path/",
-    "configVersion": "1.0",
-    "pluginDepends": [{ "name": "firesiren", "version": "1.0", "critical": true }]
+    "version": "1.2",
+    "check_url": "https://raw.githubusercontent.com/brentopc/firesiren/master/firesiren/version_firesiren.json",
+    "download_url": "https://github.com/brentopc/firesiren/",
+    "configVersion": "1.2",
+    "pluginDepends": [{ "name": "firesiren", "version": "1.2", "critical": true }]
 }
